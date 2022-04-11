@@ -28,29 +28,19 @@ compareStrings:
   sw $ra, 0($sp)
 
   li $v0, -1
-
-  # save the length of str0 and str1 on $s0, $s1
-  li $t0, 0
-  move $t1, $a0
-  jal count
-  move $s0, $t0
-  
-  li $t0, 0
-  move $t1, $a1
-  jal count
-  move $s1, $t0
-
-  slt $t0, $s0, $s1
-  move $t1, $s1
-  beq $t0, 1, saveS0
-
-  j loop
-
-saveS0:
+  move $s0, $a0
   move $t1, $s0
-  j loop
 
-endCompareStrings:
+  li $t0, 0
+  jal count
+
+  move $a0, $t0
+
+  #####
+  li $v0, 1
+  syscall
+  #####
+
   # $ra = stack.pop() <-- modify this part depending w.r.t. your implementation
   lw $ra, 0($sp)
   addi $sp, $sp, 4
@@ -59,51 +49,19 @@ endCompareStrings:
 ################################################################################
 
 count:
+  # $t0 : length
+  # $t1 : address
+  # $t2 : value
   lb $t2, 0($t1)
-  beq $t2, 0, endcount
-
+  beq $t2, 0, endCount
+  
   addi $t0, $t0, 1
   addi $t1, $t1, 1
 
   j count
 
-endcount:
+endCount:
   jr $ra
-
-loop:
-  # compare each character. $t1 has the number of iteration left to do
-  beq $t1 0 endLoop
-  lb $t2, 0($a0)
-  lb $t3, 0($a1)
-
-  bne $t2, $t3, compare
-
-  addi $a0, $a0, 1
-  addi $a1, $a1, 1
-  addi $t1, $t1, -1
-
-  j loop
-
-endLoop:
-  move $t2, $s0
-  move $t3, $s1
-
-  beq $v0, -1, compare
-  j endCompareStrings
-
-compare:
-  beq $t2, $t3, endCompareStrings
-  slt $t0, $t2, $t3
-  beq $t0, 1, v0is0
-  j v0is1
-
-v0is0:
-  li $v0, 0
-  j endLoop
-
-v0is1:
-  li $v0, 1
-  j endLoop
 
 .globl main
 main:
