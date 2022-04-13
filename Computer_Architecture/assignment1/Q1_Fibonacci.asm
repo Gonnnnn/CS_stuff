@@ -38,7 +38,6 @@ fibonacci:
   li $v1, 1
   li $t1, 0
   li $t2, 0
-  j loop
 
 loop:
   addi $a0, $a0, -1
@@ -128,8 +127,8 @@ main_return:
 
   # $ra = stack.pop()
   # $s0 = stack.pop()
-  sw $ra, 0($sp)
-  sw $s0, 4($sp)
+  lw $ra, 0($sp)
+  lw $s0, 4($sp)
   addi $sp, $sp, 8
 
   # return

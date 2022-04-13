@@ -30,15 +30,34 @@ compareStrings:
   li $v0, -1
 
   # save the length of str0 and str1 on $s0, $s1
-  li $t0, 0
+  li $t0, -1
   move $t1, $a0
-  jal count
+  addi $t1, -1
+
+count1:
+  addi $t0, $t0, 1
+  addi $t1, $t1, 1
+
+  lb $t2, 0($t1)
+  bne $t2, 0, count1
   move $s0, $t0
-  
-  li $t0, 0
+
+  li $t0, -1
   move $t1, $a1
-  jal count
+  addi $t1, -1
+
+count2:
+  addi $t0, $t0, 1
+  addi $t1, $t1, 1
+
+  lb $t2, 0($t1)
+  bne $t2, 0, count2
   move $s1, $t0
+
+# now $s0 == len(str0), $s1 == len(str1)
+
+
+### change the logic from here
 
   slt $t0, $s0, $s1
   move $t1, $s1

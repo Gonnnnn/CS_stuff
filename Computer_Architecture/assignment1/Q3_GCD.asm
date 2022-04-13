@@ -23,7 +23,9 @@ gcd:
   # stack.push($ra) <-- modify this part depending w.r.t. your implementation
   addi $sp, $sp, -4
   sw $ra, 0($sp)
+  j gcdMain
 
+gcdMain:
   # $a0 : num1, $a1 : num2
   beq $a1, $zero, returnA0
 
@@ -34,8 +36,9 @@ gcd:
   div $t0, $t1
   mfhi $a1
 
-  jal gcd
+  j gcdMain
 
+endGcd:
   # $ra = stack.pop() <-- modify this part depending w.r.t. your implementation
   lw $ra, 0($sp)
   addi $sp, $sp, 4
@@ -45,7 +48,7 @@ gcd:
 
 returnA0:
   move $v0, $a0
-  jr $ra
+  j endGcd
 
 .globl main
 main:
