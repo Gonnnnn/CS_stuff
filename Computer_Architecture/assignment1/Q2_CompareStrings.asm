@@ -27,9 +27,11 @@ compareStrings:
   addi $sp, $sp, -4
   sw $ra, 0($sp)
 
+  # ret = -1
   li $v0, -1
 
   # save the length of str0 and str1 on $s0, $s1
+  # get len(str0)
   li $t0, -1
   move $t1, $a0
   addi $t1, -1
@@ -42,6 +44,7 @@ count1:
   bne $t2, 0, count1
   move $s0, $t0
 
+  # get len(str1)
   li $t0, -1
   move $t1, $a1
   addi $t1, -1
@@ -54,66 +57,44 @@ count2:
   bne $t2, 0, count2
   move $s1, $t0
 
-# now $s0 == len(str0), $s1 == len(str1)
-
-
-### change the logic from here
-
+  # now $s0 == len(str0), $s1 == len(str1)
+  # check which one is smaller and save it to $t0
   slt $t0, $s0, $s1
-  move $t1, $s1
-  beq $t0, 1, saveS0
+  move $t0, $s1
+  bne $t0, 1, else
+  move $t0, $s0
+  
+else:
+  # $t8 : the shorter length. the number of total interations
+  # $t9 : index
+  move $t8, $t0
+  li $t9, 0
 
-  j loop
-
-saveS0:
-  move $t1, $s0
-  j loop
-
-endCompareStrings:
-  # $ra = stack.pop() <-- modify this part depending w.r.t. your implementation
-  lw $ra, 0($sp)
-  addi $sp, $sp, 4
- 
-  jr $ra
-################################################################################
-
-count:
-  lb $t2, 0($t1)
-  beq $t2, 0, endcount
-
-  addi $t0, $t0, 1
-  addi $t1, $t1, 1
-
-  j count
-
-endcount:
-  jr $ra
+  # $t0 = ord(str0[index]), $t1 = ord(str1[index])
+  # $t2 = cur address for $t0, $t3 = cur address for $t1
+  move $t2, $a0
+  move $t3, $a1
+  lb $t0, 0($t2)
+  lb $t1, 0($t3)
 
 loop:
   # compare each character. $t1 has the number of iteration left to do
-  beq $t1 0 endLoop
-  lb $t2, 0($a0)
-  lb $t3, 0($a1)
+  beq $t8 0 endLoop
+  lb $t0, 0($t2)
+  lb $t1, 0($t3)
 
-  bne $t2, $t3, compare
+  bne $t0, $t1, compare
 
-  addi $a0, $a0, 1
-  addi $a1, $a1, 1
-  addi $t1, $t1, -1
+  addi $t9, 1
+  add $t2, $a0, $t9
+  add $t3, $a1, $t9
+  addi $t8, $t8, -1
 
   j loop
 
-endLoop:
-  move $t2, $s0
-  move $t3, $s1
-
-  beq $v0, -1, compare
-  j endCompareStrings
-
 compare:
-  beq $t2, $t3, endCompareStrings
-  slt $t0, $t2, $t3
-  beq $t0, 1, v0is0
+  slt $t4, $t0, $t1
+  beq $t4, 1, v0is0
   j v0is1
 
 v0is0:
@@ -123,6 +104,25 @@ v0is0:
 v0is1:
   li $v0, 1
   j endLoop
+
+endLoop:
+  beq $v0, -1, compareLength
+  j endCompareStrings
+
+compareLength:
+  slt $t4, $s0, $s1
+  beq $t4, 1, v0is0
+  slt $t4, $s1, $s0
+  beq $t4, 1, v0is1
+  j endCompareStrings
+
+endCompareStrings:
+  # $ra = stack.pop() <-- modify this part depending w.r.t. your implementation
+  lw $ra, 0($sp)
+  addi $sp, $sp, 4
+ 
+  jr $ra
+################################################################################
 
 .globl main
 main:
