@@ -34,18 +34,19 @@ fibonacci:
   beq $t0, 1, return
 
   # if not, assign 1 on $v1, 0 on $t1, $t2 and go to loop
+  # $v1 = F(i), $t1 = F(i-2)
+  # $t2 = F(i-1), $t9 = index(i)
   li $v0, 1
   li $v1, 1
   li $t1, 0
   li $t2, 0
+  li $t9, 0
 
 loop:
-  addi $a0, $a0, -1
-  # check if $a is less than zero
-  slt $t0, $a0, $zero
-
-  # if so, then return
-  beq $t0, 1, return
+  # check if i is less than $a0
+  slt $t0, $t9, $a0
+  # if not, then return
+  bne $t0, 1, return
 
   # if not, save the cur $v1 on $t2
   move $t2, $v1
@@ -54,6 +55,7 @@ loop:
   # renew $t1 with $t2
   move $t1, $t2
 
+  addi $t9, $t9, 1
   j loop
 
 return:

@@ -25,15 +25,65 @@ str_len:
 #
 merge:
   # stack.push($ra) <-- modify this part depending w.r.t. your implementation
-  addi $sp, $sp, -4
+  addi $sp, $sp, -8
   sw $ra, 0($sp)
+  sw $s0, 4($sp)
 
-  # FIXME
-  nop
+while:
+  # compare
+  slt $t8, $a1, $a2
+  slt $t9, $a2, $a3
+  and $t0, $t8, $t9
+  
+  bne $t0, 1, endMerge
 
+  # if True, then compare str[l] and str[m]
+  # address : $s0 = str + l, $s1 = str + m
+  add $s0, $a0, $a1
+  add $s1, $a0, $a2
+
+  # $t0 = str[l], $t1 = str[m]
+  lb $t0, 0($s0)
+  lb $t1, 0($s1)
+  slt $t8, $t1, $t0
+  bne $t8, 1, else
+
+  # $t2 = tmp = str[m]
+  move $t2, $t1
+  # $t9 = i = m
+  move $t9, $a2
+  
+loop:
+  slt $t8, $a1, $t9
+  bne $t8, 1, endLoop
+
+  # $t3 = str + i - 1
+  add $t3, $a0, $t9
+  addi $t3, $t3, -1
+  # $t4 = str[i-1]
+  lb $t4, 0($t3)
+  # str[l] = str[i-1]
+  addi $t3, $t3, 1
+  sb $t4, 0($t3)
+
+  addi $t9, $t9, -1
+
+  j loop
+
+endLoop:
+  # str[l] = tmp
+  sb $t2, 0($s0)
+  addi $a2, $a2, 1
+
+else:
+  addi $a1, $a1, 1
+  j while
+
+endMerge:
   # $ra = stack.pop() <-- modify this part depending w.r.t. your implementation
   lw $ra, 0($sp)
-  addi $sp, $sp, 4
+  lw $s0, 4($sp)
+  addi $sp, $sp, 8
 
   jr $ra
 ################################################################################
@@ -48,15 +98,51 @@ merge:
 #
 mergeSort:
   # stack.push($ra) <-- modify this part depending w.r.t. your implementation
-  addi $sp, $sp, -4
+  addi $sp, $sp, -8
   sw $ra, 0($sp)
+  sw $s0, 4($sp)
+  
+  # $t1 = r-1
+  addi $t1, $a2, -1
+  slt $t0, $a1, $t1
+  bne $t0, 1, endMergeSort
 
-  # FIXME
-  nop
+  # $s0 = m = (l + r + 1) / 2
+  addu $s0, $a1, $a2
+  addi $s0, $s0, 1
+  li $t0, 2
+  divu $s0, $t0
+  mflo $s0
 
+  # load $a1, $a2 on stack
+  addi $sp, $sp, -8
+  sw $a1, 0($sp)
+  sw $a2, 4($sp)
+
+  # assign m to $a2. $a1 is already l
+  move $a2, $s0
+  jal mergeSort
+  
+  # assign m to $a1, load r to $a2
+  move $a1, $s0
+  lw $a2, 4($sp)
+  jal mergeSort
+
+  # load l to $a1, move m to $a2, load r to $a3
+  lw $a1, 0($sp)
+  move $a2, $s0
+  lw $a3, 4($sp)
+  jal merge
+
+  lw $a1, 0($sp)
+  lw $a2, 4($sp)
+  addi $sp, $sp, 8
+
+endMergeSort:
   # $ra = stack.pop() <-- modify this part depending w.r.t. your implementation
   lw $ra, 0($sp)
-  addi $sp, $sp, 4
+  lw $s0, 4($sp)
+  addi $sp, $sp, 8
 
   jr $ra
 ################################################################################

@@ -32,6 +32,7 @@ compareStrings:
 
   # save the length of str0 and str1 on $s0, $s1
   # get len(str0)
+  # $t0 = i, $t1 = str0 + i
   li $t0, -1
   move $t1, $a0
   addi $t1, -1
@@ -40,61 +41,72 @@ count1:
   addi $t0, $t0, 1
   addi $t1, $t1, 1
 
+  # $t2 = str0[i]
   lb $t2, 0($t1)
   bne $t2, 0, count1
+
+  # $s0 = len(str0)
   move $s0, $t0
 
   # get len(str1)
+  # $t0 = i, $t1 = str1 + i
   li $t0, -1
   move $t1, $a1
   addi $t1, -1
-
+  
 count2:
   addi $t0, $t0, 1
   addi $t1, $t1, 1
 
+  # $t2 = str1[i]
   lb $t2, 0($t1)
   bne $t2, 0, count2
+  
+  # $s1 = len(str1)
   move $s1, $t0
 
   # now $s0 == len(str0), $s1 == len(str1)
-  # check which one is smaller and save it to $t0
+  # check which one is smaller and save it to $t8
   slt $t0, $s0, $s1
-  move $t0, $s1
+  move $t8, $s1
   bne $t0, 1, else
-  move $t0, $s0
+  move $t8, $s0
   
 else:
   # $t8 : the shorter length. the number of total interations
-  # $t9 : index
-  move $t8, $t0
+  # $t9 : i, index
   li $t9, 0
 
-  # $t0 = ord(str0[index]), $t1 = ord(str1[index])
-  # $t2 = cur address for $t0, $t3 = cur address for $t1
-  move $t2, $a0
-  move $t3, $a1
-  lb $t0, 0($t2)
-  lb $t1, 0($t3)
-
 loop:
+  # check if index($t9) is smaller than the total num of iterations($t8)
+  slt $t7, $t9, $t8
+  # if so, end the loop
+  bne $t7, 1, endLoop
+
+  # if not, then
   # compare each character. $t1 has the number of iteration left to do
-  beq $t8 0 endLoop
-  lb $t0, 0($t2)
-  lb $t1, 0($t3)
+  # address. $t2 = str0 + i, $ t3 = str1 + i
 
-  bne $t0, $t1, compare
-
-  addi $t9, 1
   add $t2, $a0, $t9
   add $t3, $a1, $t9
-  addi $t8, $t8, -1
 
+  # $t0 = str0[i], $t1 = str1[i]
+  lb $t0, 0($t2)
+  lb $t1, 0($t3)
+
+  # if theyre different, compare
+  bne $t0, $t1, compare
+
+  # if same, increase index
+  addi $t9, 1
   j loop
 
 compare:
+  # if str0[i] < str1[i], then ret = 0
   slt $t4, $t0, $t1
   beq $t4, 1, v0is0
+  # if not, ret = 1. "compare" label is called when str0[i] != str1[i]
+  # thus, if str0[i] < str1[i] is false, then definitely str1[i] < str0[i]
   j v0is1
 
 v0is0:
@@ -106,6 +118,7 @@ v0is1:
   j endLoop
 
 endLoop:
+  # if ret = -1, compare length
   beq $v0, -1, compareLength
   j endCompareStrings
 
