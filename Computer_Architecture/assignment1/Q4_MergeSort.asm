@@ -110,7 +110,7 @@ mergeSort:
   # $s0 = m = (l + r + 1) / 2
   addu $s0, $a1, $a2
   addi $s0, $s0, 1
-  li $t0, 2
+  addi $t0, $zero, 2
   divu $s0, $t0
   mflo $s0
 

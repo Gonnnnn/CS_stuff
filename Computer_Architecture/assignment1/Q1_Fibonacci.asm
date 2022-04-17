@@ -28,7 +28,7 @@ fibonacci:
 
   # check if the argument is less than zero
   slti $t0, $a0, 0
-  li $v0, 0
+  addi $v0, $zero, 0
 
   # if less than, zero, then return
   beq $t0, 1, return
@@ -36,11 +36,11 @@ fibonacci:
   # if not, assign 1 on $v1, 0 on $t1, $t2 and go to loop
   # $v1 = F(i), $t1 = F(i-2)
   # $t2 = F(i-1), $t9 = index(i)
-  li $v0, 1
-  li $v1, 1
-  li $t1, 0
-  li $t2, 0
-  li $t9, 0
+  addi $v0, $zero, 1
+  addi $v1, $zero, 1
+  addi $t1, $zero, 0
+  addi $t2, $zero, 0
+  addi $t9, $zero, 0
 
 loop:
   # check if i is less than $a0

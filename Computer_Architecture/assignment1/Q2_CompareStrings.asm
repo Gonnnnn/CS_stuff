@@ -28,14 +28,14 @@ compareStrings:
   sw $ra, 0($sp)
 
   # ret = -1
-  li $v0, -1
+  addi $v0, $zero, -1
 
   # save the length of str0 and str1 on $s0, $s1
   # get len(str0)
   # $t0 = i, $t1 = str0 + i
-  li $t0, -1
+  addi $t0, $zero, -1
   move $t1, $a0
-  addi $t1, -1
+  addi $t1, $t1, -1
 
 count1:
   addi $t0, $t0, 1
@@ -50,9 +50,9 @@ count1:
 
   # get len(str1)
   # $t0 = i, $t1 = str1 + i
-  li $t0, -1
+  addi $t0, $zero, -1
   move $t1, $a1
-  addi $t1, -1
+  addi $t1, $t1, -1
   
 count2:
   addi $t0, $t0, 1
@@ -75,7 +75,7 @@ count2:
 else:
   # $t8 : the shorter length. the number of total interations
   # $t9 : i, index
-  li $t9, 0
+  addi $t9, $zero, 0
 
 loop:
   # check if index($t9) is smaller than the total num of iterations($t8)
@@ -98,7 +98,7 @@ loop:
   bne $t0, $t1, compare
 
   # if same, increase index
-  addi $t9, 1
+  addi $t9, $t9, 1
   j loop
 
 compare:
@@ -110,11 +110,11 @@ compare:
   j v0is1
 
 v0is0:
-  li $v0, 0
+  addi $v0, $zero, 0
   j endLoop
 
 v0is1:
-  li $v0, 1
+  addi $v0, $zero, 1
   j endLoop
 
 endLoop:
