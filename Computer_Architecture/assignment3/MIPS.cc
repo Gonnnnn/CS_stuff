@@ -16,48 +16,64 @@ void ALU::advanceCycle() {
   // _iInput1, _iInput2를 가지고 해당 연산 수행  
   // _Zero, _oResult를 반환해야할 것
 
+  // _ALU = new ALU(&_latch_ID_EX.registersReadData1, &_ALUInput1,
+  //     &_latch_EX_MEM.ctrl_MEM.ALUZero, &_latch_EX_MEM.ALUResult,
+  //     &_ALUCtrlInput);
+
   const unsigned long _ulCtrlInput = _ctrlInput->to_ulong();
 
-  int ret1 = 0, ret2 = 0, sum = 0, dif = 0, pow = 1;
-  for (size_t i = 0; i < 32 - 1; i++) {
-    if (_iInput1[i] == 1) { ret1 += pow; }
-    if (_iInput2[i] == 1) { ret2 += pow; }
-    pow *= 2;
-  }
-  if (_iInput1[31] == 1) { ret1 -= pow; }
-  if (_iInput2[31] == 1) { ret2 -= pow; }
+  int ret1 = int(_iInput1->to_ulong());
+  int ret2 = int(_iInput2->to_ulong());
+  int sum = 0, dif = 0;
+  // for (size_t i = 0; i < 32 - 1; i++) {
+  //   if (_iInput1[i] == 1) { ret1 += pow; }
+  //   if (_iInput2[i] == 1) { ret2 += pow; }
+  //   pow *= 2;
+  // }
+  // if (_iInput1[31] == 1) { ret1 -= pow; }
+  // if (_iInput2[31] == 1) { ret2 -= pow; }
+
+// 위 로직 확인
+
+  std::cout << "_iInput1: " << ret1 << std::endl;
+  std::cout << "_iInput2: " << ret2 << std::endl;
 
   if (_ulCtrlInput == 0) {
     // AND
+    std::cout << "ALU AND" << std::endl;
     *_oResult = (*_iInput1) & (*_iInput2);
   } 
   else if (_ulCtrlInput == 1) {
     // OR
+    std::cout << "ALU OR" << std::endl;
     *_oResult = (*_iInput1) | (*_iInput2);
   }
   else if (_ulCtrlInput == 2) {
     // add
+    std::cout << "ALU ADD" << std::endl;
     sum = ret1 + ret2;
     for (int i = 31; i >= 0; --i) {
-      _oResult[i] = sum >> i & 1;
+      (*_oResult)[i] = sum >> i & 1;
     }
   }
 
   dif = ret1 - ret2;
   if (_ulCtrlInput == 6) {
     // sub
+    std::cout << "ALU SUB" << std::endl;
     for (int i = 31; i >= 0; --i) {
-      _oResult[i] = dif >> i & 1;
+      (*_oResult)[i] = dif >> i & 1;
     }
   }
   else if (_ulCtrlInput == 7) {
     // slt
+    std::cout << "ALU SLT" << std::endl;
     _oResult->reset();
     if (dif < 0) {
       _oResult->set(0, true);
     }
   }
-
+  std::cout << "ALU dif: "<< dif << std::endl;
   _oZero->set(0, dif == 0);
 }
 
@@ -69,11 +85,11 @@ void PipelinedCPU::doInstructionFetch() {
   // fetch 결과(oReadData)와 PC + 4값을 IF/ID latch에 저장
   
   // PC update
-  if (_PCSrc[0] == 0) {
-    _PC = _PC.to_ulong() + 4;
-  }
-  else if (_PCSrc[0] == 1) {
+  if (_PCSrc.all()) {
     _PC = _latch_EX_MEM.branchTargetAddr;
+  }
+  else {
+    _PC = _PC.to_ulong() + 4;
   }
 
   // fetch
@@ -106,18 +122,21 @@ void PipelinedCPU::doInstructionDecode() {
   for (size_t i = 0; i < 6; i++)
     ret.opcode[i] = _latch_IF_ID.inst[26 + i];
   for (size_t i = 0; i < 5; i++) {
-    ret.R.rs[i] = ret.R.rs[i] = _latch_IF_ID.inst[21 + i];
-    ret.R.rt[i] = ret.R.rt[i] = _latch_IF_ID.inst[16 + i];
+    ret.R.rs[i] = _latch_IF_ID.inst[21 + i];
+    ret.R.rt[i] = _latch_IF_ID.inst[16 + i];
     ret.R.rd[i] = _latch_IF_ID.inst[11 + i];
   }
   for (size_t i = 0; i < 16; i++)
     ret.I.imm[i] = _latch_IF_ID.inst[i];
 
+  std::cout << "rs: " << ret.R.rs.to_ulong() << std::endl;
+  std::cout << "rt: " << ret.R.rt.to_ulong() << std::endl;
+  std::cout << "rd: " << ret.R.rd.to_ulong() << std::endl;
+
+
   // target register들 idx을 wire에 update
-  // _registersCtrlRegWrite = 0;
   _registersIReadRegister1 = ret.R.rs;
   _registersIReadRegister2 = ret.R.rt;
-  _registersIWriteRegister = ret.R.rd;
 
   // Read data
   // 포인터로 연결해서 latch의 registersReadData1,2는 알아서 update된다.
@@ -148,20 +167,16 @@ void PipelinedCPU::doInstructionDecode() {
   // beq : 4
 
   // EX : RegDst, ALUSrc, ALUOp
-  ctrl_EX_t temp_ctrl_EX;
   // MEM : Branch, MemRead, MemWrite, ALUZero
-  ctrl_MEM_t temp_ctrl_MEM;
   // WB : RegWrite, MemToReg
-  ctrl_WB_t temp_ctrl_WB;
-
   switch (ret.opcode.to_ulong()) {
     case 0: {
       // add, sub, and, or, slt
       // ALUOp = 10
-      temp_ctrl_EX = {.RegDst = 1, .ALUSrc = 0, .ALUOp = 2};
+      _latch_ID_EX.ctrl_EX = {.RegDst = 1, .ALUSrc = 0, .ALUOp = 2};
       // ALUZero는 임시로 0
-      temp_ctrl_MEM = {.Branch = 0, .MemRead = 0, .MemWrite = 0, .ALUZero = 0};
-      temp_ctrl_WB = {.RegWrite = 1, .MemToReg = 0};
+      _latch_ID_EX.ctrl_MEM = {.Branch = 0, .MemRead = 0, .MemWrite = 0, .ALUZero = 0};
+      _latch_ID_EX.ctrl_WB = {.RegWrite = 1, .MemToReg = 0};
       break;
     }
     case 8: {
@@ -169,41 +184,38 @@ void PipelinedCPU::doInstructionDecode() {
       // addi는 ALUOp이 00이도록 설정
       // destination은 rt -> RegDst = 0
       // imm을 read해야하기에 ALUSrc = 1
-      temp_ctrl_EX = {.RegDst = 0, .ALUSrc = 1, .ALUOp = 0};
+      _latch_ID_EX.ctrl_EX = {.RegDst = 0, .ALUSrc = 1, .ALUOp = 0};
       // ALUZero는 임시로 0
-      temp_ctrl_MEM = {.Branch = 0, .MemRead = 0, .MemWrite = 0, .ALUZero = 0};
-      temp_ctrl_WB = {.RegWrite = 1, .MemToReg = 0};
+      _latch_ID_EX.ctrl_MEM = {.Branch = 0, .MemRead = 0, .MemWrite = 0, .ALUZero = 0};
+      _latch_ID_EX.ctrl_WB = {.RegWrite = 1, .MemToReg = 0};
       break;
     }
     case 35: {
       // lw
-      temp_ctrl_EX = {.RegDst = 0, .ALUSrc = 1, .ALUOp = 0};
+      _latch_ID_EX.ctrl_EX = {.RegDst = 0, .ALUSrc = 1, .ALUOp = 0};
       // ALUZero는 임시로 0
-      temp_ctrl_MEM = {.Branch = 0, .MemRead = 1, .MemWrite = 0, .ALUZero = 0};
-      temp_ctrl_WB = {.RegWrite = 1, .MemToReg = 1};
+      _latch_ID_EX.ctrl_MEM = {.Branch = 0, .MemRead = 1, .MemWrite = 0, .ALUZero = 0};
+      _latch_ID_EX.ctrl_WB = {.RegWrite = 1, .MemToReg = 1};
       break;
     }
     case 43: {
       // sw
-      temp_ctrl_EX = {.RegDst = 0, .ALUSrc = 1, .ALUOp = 0};
+      _latch_ID_EX.ctrl_EX = {.RegDst = 0, .ALUSrc = 1, .ALUOp = 0};
       // ALUZero는 임시로 0
-      temp_ctrl_MEM = {.Branch = 0, .MemRead = 0, .MemWrite = 1, .ALUZero = 0};
-      temp_ctrl_WB = {.RegWrite = 0, .MemToReg = 0};
+      _latch_ID_EX.ctrl_MEM = {.Branch = 0, .MemRead = 0, .MemWrite = 1, .ALUZero = 0};
+      _latch_ID_EX.ctrl_WB = {.RegWrite = 0, .MemToReg = 0};
       break;
     }
     case 4: {
       // beq
       // ALUOp = 01
-      temp_ctrl_EX = {.RegDst = 0, .ALUSrc = 0, .ALUOp = 1};
+      _latch_ID_EX.ctrl_EX = {.RegDst = 0, .ALUSrc = 0, .ALUOp = 1};
       // ALUZero는 임시로 0
-      temp_ctrl_MEM = {.Branch = 1, .MemRead = 0, .MemWrite = 0, .ALUZero = 0};
-      temp_ctrl_WB = {.RegWrite = 0, .MemToReg = 0};
+      _latch_ID_EX.ctrl_MEM = {.Branch = 1, .MemRead = 0, .MemWrite = 0, .ALUZero = 0};
+      _latch_ID_EX.ctrl_WB = {.RegWrite = 0, .MemToReg = 0};
       break;
     }
   }
-  _latch_ID_EX.ctrl_EX = temp_ctrl_EX;
-  _latch_ID_EX.ctrl_MEM = temp_ctrl_MEM;
-  _latch_ID_EX.ctrl_WB = temp_ctrl_WB;
   std::cout << "ID end" << std::endl;
 }
 
@@ -270,6 +282,8 @@ void PipelinedCPU::doExecute() {
   else if (_latch_ID_EX.ctrl_EX.ALUSrc[0] == 1) {
     _ALUInput1 = _latch_ID_EX.signExtdImm;
   }
+  std::cout << "_latch_ID_EX.registersReadData1: "<< _latch_ID_EX.registersReadData1 << std::endl;
+  std::cout << "_ALUInput1: "<< _ALUInput1 << std::endl;
 
   // 연산
   _ALU->advanceCycle();
@@ -342,5 +356,6 @@ void PipelinedCPU::doWriteBack() {
     _registersIWriteData = _latch_MEM_WB.dataMemReadData;
   }
   _registersCtrlRegWrite = _latch_MEM_WB.ctrl_WB.RegWrite;
+  _registersIWriteRegister = _latch_MEM_WB.writeRegForRegisters;
   std::cout << "WB end" << std::endl;
 }
