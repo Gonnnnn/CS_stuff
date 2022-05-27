@@ -4,12 +4,7 @@
 
 #include "MIPS.h"
 
-// _registersCtrlRegWrite 이거 어쩔지 생각해야한다.
-
-// doExecute만 돌아가면 IF가 난리난다. 둘 관련해서 생각. 왜 오류가 날까
-
 void ALU::advanceCycle() {
-  std::cout << "ALU start" << std::endl;
   // _ctrlInput을 가지고 어떤 연산을 수행해야하는지를 결정
   // 0000 : AND, 0001 : OR, 0010 : add
   // 0110 : sub, 0111 : set on less than
@@ -19,66 +14,47 @@ void ALU::advanceCycle() {
   // _ALU = new ALU(&_latch_ID_EX.registersReadData1, &_ALUInput1,
   //     &_latch_EX_MEM.ctrl_MEM.ALUZero, &_latch_EX_MEM.ALUResult,
   //     &_ALUCtrlInput);
-
   const unsigned long _ulCtrlInput = _ctrlInput->to_ulong();
 
   int ret1 = int(_iInput1->to_ulong());
   int ret2 = int(_iInput2->to_ulong());
-  int sum = 0, dif = 0;
-  // for (size_t i = 0; i < 32 - 1; i++) {
-  //   if (_iInput1[i] == 1) { ret1 += pow; }
-  //   if (_iInput2[i] == 1) { ret2 += pow; }
-  //   pow *= 2;
-  // }
-  // if (_iInput1[31] == 1) { ret1 -= pow; }
-  // if (_iInput2[31] == 1) { ret2 -= pow; }
-
-// 위 로직 확인
-
-  std::cout << "_iInput1: " << ret1 << std::endl;
-  std::cout << "_iInput2: " << ret2 << std::endl;
+  int sum = 0;
 
   if (_ulCtrlInput == 0) {
     // AND
-    std::cout << "ALU AND" << std::endl;
     *_oResult = (*_iInput1) & (*_iInput2);
   } 
   else if (_ulCtrlInput == 1) {
     // OR
-    std::cout << "ALU OR" << std::endl;
     *_oResult = (*_iInput1) | (*_iInput2);
   }
   else if (_ulCtrlInput == 2) {
     // add
-    std::cout << "ALU ADD" << std::endl;
     sum = ret1 + ret2;
     for (int i = 31; i >= 0; --i) {
       (*_oResult)[i] = sum >> i & 1;
     }
   }
 
-  dif = ret1 - ret2;
+  int dif = ret1 - ret2;
   if (_ulCtrlInput == 6) {
     // sub
-    std::cout << "ALU SUB" << std::endl;
     for (int i = 31; i >= 0; --i) {
       (*_oResult)[i] = dif >> i & 1;
     }
   }
   else if (_ulCtrlInput == 7) {
     // slt
-    std::cout << "ALU SLT" << std::endl;
     _oResult->reset();
     if (dif < 0) {
       _oResult->set(0, true);
     }
   }
-  std::cout << "ALU dif: "<< dif << std::endl;
-  _oZero->set(0, dif == 0);
+
+  _oZero->set(0, _oResult->to_ulong() == 0);
 }
 
 void PipelinedCPU::doInstructionFetch() {
-  std::cout << "IF start" << std::endl;
   // HINT: You should invoke _instMem->advanceCycle() in this method.
   // PC update
   // fetch
@@ -86,7 +62,7 @@ void PipelinedCPU::doInstructionFetch() {
   
   // PC update
   if (_PCSrc.all()) {
-    _PC = _latch_EX_MEM.branchTargetAddr;
+    _PC = _PCSrcInput1;
   }
   else {
     _PC = _PC.to_ulong() + 4;
@@ -97,11 +73,9 @@ void PipelinedCPU::doInstructionFetch() {
 
   // IF/ID latch에 값 update. inst는 advanceCycle에서 update된다.
   _latch_IF_ID.PCPlus4 = _PC.to_ulong() + 4;
-  std::cout << "IF end" << std::endl;
 }
 
 void PipelinedCPU::doInstructionDecode() {
-  std::cout << "ID start" << std::endl;
   // HINT: You should invoke _registers->advanceCycle() in this method.
   // parse 진행 후 registerFile 객체에 변수 연결 (wire)
   // _registers->advanceCycle() 진행
@@ -128,10 +102,6 @@ void PipelinedCPU::doInstructionDecode() {
   }
   for (size_t i = 0; i < 16; i++)
     ret.I.imm[i] = _latch_IF_ID.inst[i];
-
-  std::cout << "rs: " << ret.R.rs.to_ulong() << std::endl;
-  std::cout << "rt: " << ret.R.rt.to_ulong() << std::endl;
-  std::cout << "rd: " << ret.R.rd.to_ulong() << std::endl;
 
 
   // target register들 idx을 wire에 update
@@ -216,11 +186,9 @@ void PipelinedCPU::doInstructionDecode() {
       break;
     }
   }
-  std::cout << "ID end" << std::endl;
 }
 
 void PipelinedCPU::doExecute() {
-  std::cout << "EX start" << std::endl;
   // HINT: You should invoke _ALU->advanceCycle() in this method.
   // _ALU = new ALU(&_latch_ID_EX.registersReadData1, &_ALUInput1,
   //     &_latch_EX_MEM.ctrl_MEM.ALUZero, &_latch_EX_MEM.ALUResult,
@@ -282,8 +250,6 @@ void PipelinedCPU::doExecute() {
   else if (_latch_ID_EX.ctrl_EX.ALUSrc[0] == 1) {
     _ALUInput1 = _latch_ID_EX.signExtdImm;
   }
-  std::cout << "_latch_ID_EX.registersReadData1: "<< _latch_ID_EX.registersReadData1 << std::endl;
-  std::cout << "_ALUInput1: "<< _ALUInput1 << std::endl;
 
   // 연산
   _ALU->advanceCycle();
@@ -321,19 +287,18 @@ void PipelinedCPU::doExecute() {
 
   // _latch_EX_MEM.ctrl_WB
   _latch_EX_MEM.ctrl_WB = _latch_ID_EX.ctrl_WB;
-
-  std::cout << "EX end" << std::endl;
 }
 
 void PipelinedCPU::doDataMemoryAccess() {
-  std::cout << "MEM start" << std::endl;
   // HINT: You should invoke _dataMem->advanceCycle() in this method.
   // _dataMem = new Memory(dataMemSize, &_latch_EX_MEM.ALUResult,
   //     &_latch_EX_MEM.registersReadData2, &_latch_MEM_WB.dataMemReadData,
   //     &_latch_EX_MEM.ctrl_MEM.MemRead, &_latch_EX_MEM.ctrl_MEM.MemWrite);
   
-  // PCSrc update
+  // PCSrc, PCSrcInput1 update
   _PCSrc = _latch_EX_MEM.ctrl_MEM.ALUZero & _latch_EX_MEM.ctrl_MEM.Branch;
+  _PCSrcInput1 = _latch_EX_MEM.branchTargetAddr;
+
   // Read/Write
   // MemRead, MemWrite는 윗단에서 정해진게 포인터로 이어져 들어간다.
   _dataMem->advanceCycle();
@@ -342,12 +307,9 @@ void PipelinedCPU::doDataMemoryAccess() {
   _latch_MEM_WB.ALUResult = _latch_EX_MEM.ALUResult;
   _latch_MEM_WB.writeRegForRegisters = _latch_EX_MEM.writeRegForRegisters;
   _latch_MEM_WB.ctrl_WB = _latch_EX_MEM.ctrl_WB;
-
-  std::cout << "MEM end" << std::endl;
 }
 
 void PipelinedCPU::doWriteBack() {
-  std::cout << "WB start" << std::endl;
   // MemtoReg를 기준으로 _registersIWriteData 선정
   if (_latch_MEM_WB.ctrl_WB.MemToReg[0] == 0) {
     _registersIWriteData = _latch_MEM_WB.ALUResult;
@@ -357,5 +319,4 @@ void PipelinedCPU::doWriteBack() {
   }
   _registersCtrlRegWrite = _latch_MEM_WB.ctrl_WB.RegWrite;
   _registersIWriteRegister = _latch_MEM_WB.writeRegForRegisters;
-  std::cout << "WB end" << std::endl;
 }

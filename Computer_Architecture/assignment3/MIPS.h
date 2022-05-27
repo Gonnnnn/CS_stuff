@@ -337,7 +337,7 @@ public:
     printf("      RegWrite = %lu\n", _latch_ID_EX.ctrl_WB.RegWrite.to_ulong());
     printf("      MemToReg = %lu\n", _latch_ID_EX.ctrl_WB.MemToReg.to_ulong());
 		printf("  EX-MEM\n");
-		printf("    branchTargetAddr = %lu\n", _latch_EX_MEM.branchTargetAddr.to_ulong());
+    printf("    branchTargetAddr = %lu\n", _latch_EX_MEM.branchTargetAddr.to_ulong());
 		printf("    ALUResult = 0x%08lx\n", _latch_EX_MEM.ALUResult.to_ulong());
 		printf("    registersReadData2 = 0x%08lx\n", _latch_EX_MEM.registersReadData2.to_ulong());
     printf("    writeRegForRegisters = 0b%s\n", _latch_EX_MEM.writeRegForRegisters.to_string().c_str());
