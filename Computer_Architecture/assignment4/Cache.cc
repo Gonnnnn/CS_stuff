@@ -76,15 +76,7 @@ void Cache::access(const WORD addr, const bool isWrite, WORD *data) {
     }
   }
   /*************************************************************************************/
-  // printf("tag: %x \n", tag);
-  // printf("index: %u \n", index);
-  // printf("offset: %d \n", offset);
-  // printf("target: %u \n", target);
-  // printf("invalid_victim: %u \n", invalid_victim);
-  // printf("lru_victim: %u \n", lru_victim);
-  // printf("lru_max: %u \n", lru_max);
-  // printf("hit: %c \n", hit ? 'T' : 'F');
-  // printf("invalid: %c \n", invalid_bit ? 'T' : 'F');
+
   /*************************************************************************************/
   // write request
   if(isWrite){
@@ -114,7 +106,6 @@ void Cache::access(const WORD addr, const bool isWrite, WORD *data) {
 
       target = victim;
     }
-    // printf("final target: %u \n", target);
 
     // cache 정리 끝. 실제 data(1word) 덮어쓰기. Little endian
     _lines[index][target].lruCounter = 0;
