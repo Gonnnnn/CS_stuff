@@ -66,6 +66,7 @@ void Cache::access(const WORD addr, const bool isWrite, WORD *data) {
       }
       _lines[index][i].lruCounter += 1;
       if(_lines[index][i].tag == tag){
+        target = i;
         hit = true;
       }
     }
@@ -75,32 +76,19 @@ void Cache::access(const WORD addr, const bool isWrite, WORD *data) {
     }
   }
   /*************************************************************************************/
-
+  // printf("tag: %x \n", tag);
+  // printf("index: %u \n", index);
+  // printf("offset: %d \n", offset);
+  // printf("target: %u \n", target);
+  // printf("invalid_victim: %u \n", invalid_victim);
+  // printf("lru_victim: %u \n", lru_victim);
+  // printf("lru_max: %u \n", lru_max);
+  // printf("hit: %c \n", hit ? 'T' : 'F');
+  // printf("invalid: %c \n", invalid_bit ? 'T' : 'F');
   /*************************************************************************************/
   // write request
   if(isWrite){
-    if(hit){
-      for(size_t i = 0; i < 4; i++){
-        _lines[index][target].data[offset + i] = (*data % 256);
-        if(_writePolicy == WRITE_THROUGH){
-          _memory[addr + i] = (*data % 256);
-        }
-        *data >>= 8;
-      }
-      if(_lines[index][target].dirty && _writePolicy == ){
-
-      }
-      if(_writePolicy == WRITE_BACK){
-        if(_lines[index][target].dirty){
-
-
-        }else{
-          _lines[index][target].dirty = true;
-        }
-      }
-    }
-    else{
-      // miss여도 victim 찾아서 바로 memory에서 값 가져와 write해버림
+    if(hit != true){
       if(invalid_bit){
         // invalid_bit이 존재할 경우
         victim = invalid_victim;
@@ -109,30 +97,42 @@ void Cache::access(const WORD addr, const bool isWrite, WORD *data) {
         // invalid_bit이 없을 경우. LRU policy를 따른다.
         victim = lru_victim;
       }
-      if(_writePolicy == WRITE_THROUGH){
-        // update line
-        _lines[index][victim].tag = tag;
-        // hit이 아니므로, memory에서 line를 가져온다.
-        for(size_t i=0; i < 4; i++){
-          _lines[index][victim].data[offset + i] = (*data % 256);
-          *data >>= 8;
+      // dirty가 true이면, 먼저 해당 line를 memory에 update시켜주고나서 cache를 갱신
+      if(_writePolicy == WRITE_BACK && _lines[index][victim].dirty){
+        WORD dirty_addr = (_lines[index][victim].tag << (index_length + offset_length)) + (index << offset_length) + offset;
+        for(size_t i=0; i < _lineSize; i++){
+          _memory[dirty_addr + i] = _lines[index][victim].data[i];
         }
-        _lines[index][victim].lruCounter = 0;
-
-
-
-      // write_back 타입인 경우 dirty값 갱신
-      if(_writePolicy == WRITE_BACK){
-        _lines[index][victim].dirty = false;
       }
 
-
-
-        
-        
+      // update cahche line
+      _lines[index][victim].tag = tag;
+      // hit이 아니므로, memory에서 line를 가져온다.
+      for(size_t i=0; i < _lineSize; i++){
+        _lines[index][victim].data[i] = _memory[addr + i];
       }
-      
 
+      target = victim;
+    }
+    // printf("final target: %u \n", target);
+
+    // cache 정리 끝. 실제 data(1word) 덮어쓰기. Little endian
+    _lines[index][target].lruCounter = 0;
+    WORD temp_data = *data;
+    for(size_t i = 0; i < 4; i++){
+      _lines[index][target].data[offset + i] = (temp_data % 256);
+      temp_data >>= 8;
+    }
+    
+    // WRITE_THROUGH이면 memory까지 갱신
+    if(_writePolicy == WRITE_THROUGH){
+      for(size_t i=0; i < _lineSize; i++){
+        _memory[addr + i] = _lines[index][target].data[i];
+      }
+    }
+    // WRITE_BACK이면 해당 line을 dirty로 표기
+    else{
+      _lines[index][target].dirty = true;
     }
   }
   /*************************************************************************************/
@@ -148,7 +148,7 @@ void Cache::access(const WORD addr, const bool isWrite, WORD *data) {
         // invalid_bit이 없을 경우. LRU policy를 따른다.
         victim = lru_victim;
       }
-      // dirty가 true이면, 먼저 해당 line를 memory에 update시켜주고나서 cache를 바꿔야할 것이다.
+      // dirty가 true이면, 먼저 해당 line를 memory에 update시켜주고나서 cache를 갱신
       // dirty도 false로 갱신
       if(_writePolicy == WRITE_BACK && _lines[index][victim].dirty){
         WORD dirty_addr = (_lines[index][victim].tag << (index_length + offset_length)) + (index << offset_length) + offset;
@@ -164,11 +164,11 @@ void Cache::access(const WORD addr, const bool isWrite, WORD *data) {
       for(size_t i=0; i < _lineSize; i++){
         _lines[index][victim].data[i] = _memory[addr + i];
       }
-      _lines[index][victim].lruCounter = 0;
 
       target = victim;
     }
     // cache 정리 끝. 실제 data(1word) 가져오기
+    _lines[index][target].lruCounter = 0;
     *data = 0;
     for(size_t i = 0; i < 4; i++){
       *data <<= 8;
