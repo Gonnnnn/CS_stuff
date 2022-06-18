@@ -23,7 +23,7 @@ void Cache::access(const WORD addr, const bool isWrite, WORD *data) {
     if(temp == 1){
       break;
     }
-    temp = temp >> 2;
+    temp = temp >> 1;
     index_length += 1;
   }
   size_t offset_length = 0;
@@ -32,13 +32,13 @@ void Cache::access(const WORD addr, const bool isWrite, WORD *data) {
     if(temp == 1){
       break;
     }
-    temp = temp >> 2;
+    temp = temp >> 1;
     offset_length += 1;
   }
 
-  // tag, index, offset 구하기
+  // tag, index, a 구하기
   WORD line_address = addr >> offset_length;
-  siez_t offset = addr - (line_address << offset_length);
+  size_t offset = addr - (line_address << offset_length);
   WORD tag = line_address >> index_length;
   size_t index = line_address - (tag << index_length) ;
 
@@ -48,14 +48,14 @@ void Cache::access(const WORD addr, const bool isWrite, WORD *data) {
   int target = -1;
   int invalid_victim = -1;
   int lru_victim = -1;
-  int lru_max = -1;
+  size_t lru_max = 0;
   int victim;
   bool hit = false;
   bool invalid_bit = false;
   for(int i=_numLines/_numSets-1; i >= 0 ; i--){
     if(_lines[index][i].valid == true){
       // lrc_victim을 이렇게 구하는게 맞는지 생각해봐야함. counter개수가 같은 애들 중 index가 가장 작은 애를 고르는게 맞겠지?
-      if(lru_max < _lines[index][i].lruCounter){
+      if(lru_max <= _lines[index][i].lruCounter){
         lru_max = _lines[index][i].lruCounter;
         lru_victim = i;
       }
@@ -69,22 +69,26 @@ void Cache::access(const WORD addr, const bool isWrite, WORD *data) {
       invalid_victim = i;
     }
   }
-    
+
   if(isWrite){
     if(hit){
+      if(_writePolicy == WRITE_THROUGH){
+        // update cache and memory at the same time(사실 동시에는 아니고, 순차적으로 진행되어야하긴 함)
+        for(size_t i = 0; i < 4; i++){
+          _lines[index][target].data[offset + i] = (*data % 256);
+          _memory[addr + i] = (*data % 256);
+          *data >>= 8;
+        }
+      }
+      // else{
+        
 
-    }else{
+      // }
+
 
     }
-  }else{
-    if(hit){
-      *data = 0;
-      // 여기 다시 생각해볼필요
-      for(int i = 0; i < _lineSize; i++){
-        *data <<= 8;
-        *data += _lines[index][target].data[offset + 3 - i];
-      }
-    }else{
+    // 6/17 write에서 miss가 났을때 write에서 hit인데 write back policy일 때를 구현해야한다.
+    else{
       if(invalid_bit){
         // invalid_bit이 존재할 경우
         victim = invalid_victim;
@@ -96,8 +100,40 @@ void Cache::access(const WORD addr, const bool isWrite, WORD *data) {
       _lines[index][victim].valid = true;
       _lines[index][victim].tag = tag;
       // hit이 아니므로, memory에서 data를 가져온다.
+      for(size_t i=0; i < 4; i++){
+        _lines[index][victim].data[offset + i] = (*data % 256);
+        *data >>= 8;
+      }
+      _lines[index][victim].lruCounter = 0;
+
+
+
+      // write_back 타입인 경우 dirty값 갱신
+      if(_writePolicy == WRITE_BACK){
+        _lines[index][victim].dirty = false;
+      }
+
+
+
+      
+      _lines[index][target].valid = true;
+
+    }
+  }else{
+    if(hit != true){
+      if(invalid_bit){
+        // invalid_bit이 존재할 경우
+        victim = invalid_victim;
+        _lines[index][victim].valid = true;
+      }else{
+        // invalid_bit이 없을 경우. LRU policy를 따른다.
+        victim = lru_victim;
+      }
+      // update line
+      _lines[index][victim].tag = tag;
+      // hit이 아니므로, memory에서 data를 가져온다.
       // 아마 cache도 little endian이겠지
-      for (int i=0; i < 4; i++){
+      for(size_t i=0; i < 4; i++){
         // 여기서 offset 안썼다고함 태헌이는
         _lines[index][victim].data[offset + (3 - i)] = _memory[addr + (3 - i)];
       }
@@ -106,16 +142,14 @@ void Cache::access(const WORD addr, const bool isWrite, WORD *data) {
       if(_writePolicy == WRITE_BACK){
         _lines[index][victim].dirty = false;
       }
+
+      target = victim;
+    }
+    *data = 0;
+    for(size_t i = 0; i < 4; i++){
+      *data <<= 8;
+      *data += _lines[index][target].data[offset + (3 - i)];
     }
   }
-
-
-
-  // isWrite이 false일 때
-  // 해당 block을 찾아간 후, tag 확인. 같다면 읽어서 *data에 넣기
-  // 다르다면 memory에서 불러오기. 불러온 후 dirty = False 처리
-
-  // isWrite이 true일 때
-  // 해당 block을 찾아간 후, tag 확인
-  // tag가 맞다면, i
 }
+// 어차피 4byte씩 적고 쓰니까, byte offset보다는 line내에 word가 어디 위치하는지를 아는게 중요할듯?
