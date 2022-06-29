@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+# Constants
+n_lines=(8)
+n_sets=(1 2 4 8)
+l_sizes=(4 8)
+policies=('WriteThrough' 'WriteBack')
+files=('data.0' 'data.1' 'data.2')
+
+# Output directory
+output_dir='./yours'
+# Sample directory
+sample_dir='./examples'
+
+mkdir -p $output_dir
+make clean && make
+
+for n_line in "${n_lines[@]}"; do
+for n_set in "${n_sets[@]}"; do
+for l_size in "${l_sizes[@]}"; do
+for policy in "${policies[@]}"; do
+for f_data in "${files[@]}"; do
+    out_name="output-${n_line}-${n_set}-${l_size}-${policy}-${f_data}"
+    ./testCache $n_line $n_set $l_size $policy $f_data > "${output_dir}/${out_name}"
+    diff --color=auto -us "${sample_dir}/${out_name}" "${output_dir}/${out_name}"
+done
+done
+done
+done
+done

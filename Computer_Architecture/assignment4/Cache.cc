@@ -1,5 +1,7 @@
 #include "Cache.h"
 
+// allocate, fetch on write cache
+
 // '_memory' defined in testCache.cc
 extern BYTE _memory[MEMSIZE];
 
@@ -80,7 +82,17 @@ void Cache::access(const WORD addr, const bool isWrite, WORD *data) {
   /*************************************************************************************/
   // write request
   if(isWrite){
+    WORD line_addr = 0;
+    while(true){
+      line_addr += _lineSize;
+      if (line_addr > addr){
+        line_addr -= _lineSize;
+        break;
+      }
+    }
+
     if(hit != true){
+
       if(invalid_bit){
         // invalid_bit이 존재할 경우
         victim = invalid_victim;
@@ -89,9 +101,10 @@ void Cache::access(const WORD addr, const bool isWrite, WORD *data) {
         // invalid_bit이 없을 경우. LRU policy를 따른다.
         victim = lru_victim;
       }
+      
       // dirty가 true이면, 먼저 해당 line를 memory에 update시켜주고나서 cache를 갱신
       if(_writePolicy == WRITE_BACK && _lines[index][victim].dirty){
-        WORD dirty_addr = (_lines[index][victim].tag << (index_length + offset_length)) + (index << offset_length) + offset;
+        WORD dirty_addr = (_lines[index][victim].tag << (index_length + offset_length)) + (index << offset_length);
         for(size_t i=0; i < _lineSize; i++){
           _memory[dirty_addr + i] = _lines[index][victim].data[i];
         }
@@ -99,9 +112,9 @@ void Cache::access(const WORD addr, const bool isWrite, WORD *data) {
 
       // update cahche line
       _lines[index][victim].tag = tag;
-      // hit이 아니므로, memory에서 line를 가져온다.
+      // hit이 아니므로, memory에서 line를 가져온다. 이때 line size를 고려해야할 것
       for(size_t i=0; i < _lineSize; i++){
-        _lines[index][victim].data[i] = _memory[addr + i];
+        _lines[index][victim].data[i] = _memory[line_addr + i];
       }
 
       target = victim;
@@ -118,7 +131,7 @@ void Cache::access(const WORD addr, const bool isWrite, WORD *data) {
     // WRITE_THROUGH이면 memory까지 갱신
     if(_writePolicy == WRITE_THROUGH){
       for(size_t i=0; i < _lineSize; i++){
-        _memory[addr + i] = _lines[index][target].data[i];
+        _memory[line_addr + i] = _lines[index][target].data[i];
       }
     }
     // WRITE_BACK이면 해당 line을 dirty로 표기
@@ -142,7 +155,7 @@ void Cache::access(const WORD addr, const bool isWrite, WORD *data) {
       // dirty가 true이면, 먼저 해당 line를 memory에 update시켜주고나서 cache를 갱신
       // dirty도 false로 갱신
       if(_writePolicy == WRITE_BACK && _lines[index][victim].dirty){
-        WORD dirty_addr = (_lines[index][victim].tag << (index_length + offset_length)) + (index << offset_length) + offset;
+        WORD dirty_addr = (_lines[index][victim].tag << (index_length + offset_length)) + (index << offset_length);
         for(size_t i=0; i < _lineSize; i++){
           _memory[dirty_addr + i] = _lines[index][victim].data[i];
         }
@@ -152,8 +165,16 @@ void Cache::access(const WORD addr, const bool isWrite, WORD *data) {
       // update cahche line
       _lines[index][victim].tag = tag;
       // hit이 아니므로, memory에서 line를 가져온다.
+      WORD line_addr = 0;
+      while(true){
+        line_addr += _lineSize;
+        if (line_addr > addr){
+          line_addr -= _lineSize;
+          break;
+        }
+      }
       for(size_t i=0; i < _lineSize; i++){
-        _lines[index][victim].data[i] = _memory[addr + i];
+        _lines[index][victim].data[i] = _memory[line_addr + i];
       }
 
       target = victim;
